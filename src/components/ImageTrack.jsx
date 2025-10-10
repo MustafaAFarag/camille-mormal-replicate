@@ -17,19 +17,19 @@ export default function ImageTrack() {
       const mouseDelta = parseFloat(track.dataset.mouseDownAt) - e.clientX,
         maxDelta = window.innerWidth / 2;
 
-      const percentage = (mouseDelta / maxDelta) * -100,
+      const percentage = (mouseDelta / maxDelta) * -50,
         nextPercentageUnconstrained =
           parseFloat(track.dataset.prevPercentage) + percentage,
         nextPercentage = Math.max(
           Math.min(nextPercentageUnconstrained, 0),
-          -100
+          -90
         );
 
       track.dataset.percentage = nextPercentage;
 
       track.animate(
         {
-          transform: `translate(${nextPercentage}%, -50%)`,
+          transform: `translate(${nextPercentage - 5}%, -50%)`,
         },
         { duration: 1200, fill: "forwards" }
       );
@@ -37,7 +37,7 @@ export default function ImageTrack() {
       for (const image of track.getElementsByClassName("image")) {
         image.animate(
           {
-            objectPosition: `${100 + nextPercentage}% center`,
+            objectPosition: `${50 + nextPercentage / 2}% center`,
           },
           { duration: 1200, fill: "forwards" }
         );
