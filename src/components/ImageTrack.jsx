@@ -50,8 +50,8 @@ export default function ImageTrack({ onImageChange }) {
         maxDelta = window.innerWidth / 2;
 
       const percentage = (mouseDelta / maxDelta) * -50,
-        nextPercentageUnconstrained =
-          parseFloat(track.dataset.prevPercentage) + percentage,
+        prevPercentage = parseFloat(track.dataset.prevPercentage) || 0, // Default to 0 if NaN
+        nextPercentageUnconstrained = prevPercentage + percentage,
         nextPercentage = Math.max(
           Math.min(nextPercentageUnconstrained, 0),
           -89
@@ -195,8 +195,8 @@ export default function ImageTrack({ onImageChange }) {
         left: finalLeft,
         width: finalWidth,
         height: finalHeight,
-        duration: 1.5,
-        ease: "power2.inOut",
+        duration: 0.8,
+        ease: "easeIn",
         onUpdate: function () {
           const progress = this.progress();
           if (progress % 0.1 < 0.02) {
@@ -273,6 +273,20 @@ export default function ImageTrack({ onImageChange }) {
           setExpandedImageIndex(null);
           if (track) {
             track.style.pointerEvents = "auto";
+            // Ensure dataset values are valid
+            if (
+              !track.dataset.percentage ||
+              isNaN(parseFloat(track.dataset.percentage))
+            ) {
+              track.dataset.percentage = "0";
+            }
+            if (
+              !track.dataset.prevPercentage ||
+              isNaN(parseFloat(track.dataset.prevPercentage))
+            ) {
+              track.dataset.prevPercentage = "0";
+            }
+            track.dataset.mouseDownAt = "0";
           }
         },
       });
