@@ -5,8 +5,15 @@
   width: 20px;
   height: 20px;
   transform: translate(-50%, -50%);
-  pointer-events: none; /* Don’t block clicks */
+  pointer-events: none; /* Don't block clicks */
   z-index: 9999; /* Stay on top of everything */
+  opacity: 1;
+  transition: opacity 0.1s ease; /* Very fast transition */
+}
+
+.crosshair.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .crosshair .horizontal-line {

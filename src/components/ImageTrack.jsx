@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 
 gsap.registerPlugin(useGSAP);
 
-export default function ImageTrack({ onImageChange }) {
+export default function ImageTrack({ onImageChange, onExpandChange }) {
   const [expandedImageIndex, setExpandedImageIndex] = useState(null);
   const trackRef = useRef(null);
   const imagesRef = useRef([]);
@@ -169,7 +169,7 @@ export default function ImageTrack({ onImageChange }) {
         height: rect.height,
         margin: 0,
         padding: 0,
-        zIndex: 1000,
+        zIndex: 1000, // Below navbar (10000) but above other content
         transform: "none",
         objectFit: "cover",
         cursor: "pointer",
@@ -217,6 +217,7 @@ export default function ImageTrack({ onImageChange }) {
           clone.addEventListener("click", () =>
             handleImageClick(expandedImageIndex)
           );
+          // Note: Parent already notified immediately on click
         },
       });
 
@@ -246,7 +247,11 @@ export default function ImageTrack({ onImageChange }) {
   // Handle image click
   const handleImageClick = (index) => {
     if (expandedImageIndex === index) {
-      // Collapse back to original
+      // Collapse back to original - IMMEDIATELY notify parent
+      if (onExpandChange) {
+        onExpandChange(false);
+      }
+
       const images = imagesRef.current;
       const track = trackRef.current;
       const clone = clonedImageRef.current;
@@ -291,7 +296,10 @@ export default function ImageTrack({ onImageChange }) {
         },
       });
     } else {
-      // Expand image
+      // Expand image - IMMEDIATELY notify parent
+      if (onExpandChange) {
+        onExpandChange(true);
+      }
       setExpandedImageIndex(index);
     }
   };

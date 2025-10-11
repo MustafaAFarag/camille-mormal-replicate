@@ -7,14 +7,25 @@ import TestingImage from "./components/TestingImage";
 
 function App() {
   const [currentImageIndex, setCurrentImageIndex] = useState(1);
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
 
   return (
     <>
       <main>
         <Navbar />
-        <CrossCursor />
-        <ImageTrack onImageChange={setCurrentImageIndex} />
+        <CrossCursor isHidden={isImageExpanded} />
+        <ImageTrack
+          onImageChange={setCurrentImageIndex}
+          onExpandChange={setIsImageExpanded}
+        />
         <ImageIndicator currentImage={currentImageIndex} totalImages={8} />
+
+        {/* Image title overlay */}
+        {isImageExpanded && (
+          <div className="image-title-overlay">
+            <h1 className="image-title">The Regeneration Suite</h1>
+          </div>
+        )}
       </main>
       {/* <TestingImage /> */}
     </>
