@@ -321,7 +321,7 @@ export default function LoadingIntro({ onComplete }) {
     <div ref={overlayRef} className="loading-intro-overlay">
       {!imagesLoaded && (
         <div className="loading-progress">
-          <h2 className="loading-text">Loading {loadingProgress}%</h2>
+          <h2 className="loading-text">{loadingProgress}%</h2>
         </div>
       )}
 

@@ -400,7 +400,16 @@ export default function ImageTrack({
       // Get the object-position from the original image
       const originalObjectPosition =
         window.getComputedStyle(clickedImage).objectPosition;
-      console.log("📐 Original object-position:", originalObjectPosition);
+      console.log("=".repeat(60));
+      console.log("� EXPANSION STARTING");
+      console.log("�📐 Original object-position:", originalObjectPosition);
+      console.log("📐 Clicked image index:", expandedImageIndex);
+      console.log(
+        "📐 Saved position for this image:",
+        savedObjectPositionsRef.current[expandedImageIndex]
+      );
+      console.log("📐 Current track percentage:", track?.dataset.percentage);
+      console.log("=".repeat(60));
 
       gsap.set(clone, {
         position: "fixed",
@@ -416,6 +425,11 @@ export default function ImageTrack({
         objectPosition: originalObjectPosition, // Preserve the object-position
         cursor: "pointer",
       });
+
+      console.log(
+        "✅ Clone created with object-position:",
+        originalObjectPosition
+      );
 
       // Hide the original image
       gsap.set(clickedImage, {
@@ -517,7 +531,9 @@ export default function ImageTrack({
       if (clone) {
         const currentRect = clone.getBoundingClientRect();
         const currentStyle = window.getComputedStyle(clone);
-        console.log("🔍 CLONE STATE BEFORE COLLAPSE:", {
+        console.log("=".repeat(60));
+        console.log("� COLLAPSE STARTING");
+        console.log("�🔍 CLONE STATE BEFORE COLLAPSE:", {
           boundingRect: {
             top: currentRect.top,
             left: currentRect.left,
@@ -532,6 +548,11 @@ export default function ImageTrack({
             objectPosition: currentStyle.objectPosition,
           },
         });
+        console.log(
+          "📐 Clone's current object-position:",
+          currentStyle.objectPosition
+        );
+        console.log("=".repeat(60));
       }
 
       if (originalPos) {
@@ -549,13 +570,23 @@ export default function ImageTrack({
         }
 
         if (originalPos) {
+          // Get the saved object-position for the expanded image
+          const savedObjectPosition =
+            savedObjectPositionsRef.current[index] || "50% center";
+
           console.log("Animating clone back to position:", originalPos);
-          // Reverse animation: shrink back to original position
+          console.log(
+            "🎯 Animating clone's object-position to:",
+            savedObjectPosition
+          );
+
+          // Reverse animation: shrink back to original position AND restore object-position
           gsap.to(clone, {
             top: originalPos.top,
             left: originalPos.left,
             width: originalPos.width,
             height: originalPos.height,
+            objectPosition: savedObjectPosition, // CRITICAL: Animate object-position back too!
             duration: 0.8,
             ease: "power2.inOut",
             onComplete: () => {
@@ -592,25 +623,32 @@ export default function ImageTrack({
         }
       });
 
-      // CRITICAL FIX for Bug #2: Restore each image with CURRENT object-position from track
-      // Get the current track percentage to calculate the correct object-position
-      const currentPercentage = parseFloat(track?.dataset.percentage) || 0;
-      const correctObjectPosition = `${50 + currentPercentage / 2}% center`;
-
-      console.log(`🎯 Current track percentage: ${currentPercentage}%`);
+      // CRITICAL FIX: Restore each image with its SAVED object-position from before expansion
+      // The saved positions are correct because they were captured before any animations
+      console.log("=".repeat(60));
       console.log(
-        `🎯 Calculated correct object-position: ${correctObjectPosition}`
+        `🎯 Saved object-positions array:`,
+        savedObjectPositionsRef.current
       );
+      console.log(`🎯 Expanded image index was: ${index}`);
+      console.log("=".repeat(60));
 
       images.forEach((img, idx) => {
         if (img) {
+          // Use the saved position for this specific image
+          const savedPosition =
+            savedObjectPositionsRef.current[idx] || "50% center";
+          const currentPosition = window.getComputedStyle(img).objectPosition;
+
           console.log(
-            `🔄 Restoring image ${idx} with object-position: ${correctObjectPosition}`
+            `🔄 Restoring image ${idx}:`,
+            `\n   Current object-position: ${currentPosition}`,
+            `\n   Restoring to saved: ${savedPosition}`
           );
 
           // Set immediately to prevent flicker, then fade in
           gsap.set(img, {
-            objectPosition: correctObjectPosition,
+            objectPosition: savedPosition, // Use saved position, not calculated
           });
 
           gsap.to(img, {
@@ -625,19 +663,18 @@ export default function ImageTrack({
       gsap.delayedCall(0.8, () => {
         console.log("🧹 Cleaning up after collapse");
 
-        // Get current track percentage for final object-position
-        const currentPercentage = parseFloat(track?.dataset.percentage) || 0;
-        const finalObjectPosition = `${50 + currentPercentage / 2}% center`;
-
-        // Clear GSAP inline styles but preserve object-position
+        // Clear GSAP inline styles and ensure saved object-positions are applied
         images.forEach((img, idx) => {
           if (img) {
+            const savedPosition =
+              savedObjectPositionsRef.current[idx] || "50% center";
+
             // Clear all props except object-position
             gsap.set(img, { clearProps: "opacity" });
-            // Ensure object-position matches current carousel state
-            img.style.objectPosition = finalObjectPosition;
+            // Ensure object-position matches the saved state
+            img.style.objectPosition = savedPosition;
             console.log(
-              `✅ Image ${idx} cleaned up with object-position: ${finalObjectPosition}`
+              `✅ Image ${idx} cleaned up with saved object-position: ${savedPosition}`
             );
           }
         });
