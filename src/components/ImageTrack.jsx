@@ -9,6 +9,7 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
   const trackRef = useRef(null);
   const imagesRef = useRef([]);
   const clonedImageRef = useRef(null);
+  const originalPositionRef = useRef(null); // Store original position for reverse animation
 
   useEffect(() => {
     const track = document.getElementById("image-track");
@@ -161,6 +162,14 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
       document.body.appendChild(clone);
       clonedImageRef.current = clone;
 
+      // Store original position for reverse animation
+      originalPositionRef.current = {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      };
+
       gsap.set(clone, {
         position: "fixed",
         top: rect.top,
@@ -255,24 +264,29 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
       const images = imagesRef.current;
       const track = trackRef.current;
       const clone = clonedImageRef.current;
+      const originalPos = originalPositionRef.current;
 
-      if (clone) {
-        // Animate clone out and remove it
+      if (clone && originalPos) {
+        // Reverse animation: shrink back to original position
         gsap.to(clone, {
-          opacity: 0,
-          duration: 0.5,
+          top: originalPos.top,
+          left: originalPos.left,
+          width: originalPos.width,
+          height: originalPos.height,
+          duration: 0.8,
           ease: "power2.inOut",
           onComplete: () => {
             clone.remove();
             clonedImageRef.current = null;
+            originalPositionRef.current = null;
           },
         });
       }
 
-      // Restore all images
+      // Restore all images - start fading in as clone shrinks
       gsap.to(images, {
         opacity: 1,
-        duration: 1.5,
+        duration: 0.8,
         ease: "power2.inOut",
         onComplete: () => {
           setExpandedImageIndex(null);
