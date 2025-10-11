@@ -15,26 +15,54 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
     const track = document.getElementById("image-track");
     const totalImages = 8;
 
-    // Function to calculate which image is in the center
-    const calculateCenterImage = (percentage) => {
-      // percentage ranges from 0 to -90
-      // We want to detect when the LEFT edge of an image hits the center
-      // Each image represents approximately 90/7 ≈ 12.86% of the total range
-      // Adjust the threshold so it changes earlier
-      const normalizedPercentage = Math.abs(percentage);
-      // Use a factor to make it trigger earlier (when left edge hits center)
-      // Divide by (totalImages - 1) to distribute across the range better
-      const imageIndex = Math.min(
-        Math.max(
-          Math.ceil((normalizedPercentage / 90) * (totalImages - 1)) + 1,
-          1
-        ),
-        totalImages
-      );
+    // Function to calculate which image intersects with the viewport center
+    const calculateCenterImage = () => {
+      const images = imagesRef.current;
+      const viewportCenterX = window.innerWidth / 2;
+      const viewportCenterY = window.innerHeight / 2;
 
-      console.log("Current percentage:", percentage);
-      console.log("Center Image Index:", imageIndex);
-      return imageIndex;
+      // Find which image's bounding box contains the center point
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img) continue;
+
+        const rect = img.getBoundingClientRect();
+
+        // Check if viewport center is within this image's bounds
+        if (
+          rect.left <= viewportCenterX &&
+          rect.right >= viewportCenterX &&
+          rect.top <= viewportCenterY &&
+          rect.bottom >= viewportCenterY
+        ) {
+          return i + 1; // Return 1-based index
+        }
+      }
+
+      // If no exact intersection, find the closest image to center
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img) continue;
+
+        const rect = img.getBoundingClientRect();
+        const imgCenterX = rect.left + rect.width / 2;
+        const imgCenterY = rect.top + rect.height / 2;
+
+        const distance = Math.sqrt(
+          Math.pow(imgCenterX - viewportCenterX, 2) +
+            Math.pow(imgCenterY - viewportCenterY, 2)
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = i;
+        }
+      }
+
+      return closestIndex + 1; // Return 1-based index
     };
 
     const handleOnDown = (e) => (track.dataset.mouseDownAt = e.clientX);
@@ -59,10 +87,6 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
         );
 
       track.dataset.percentage = nextPercentage;
-
-      // Update the current image indicator
-      const centerImage = calculateCenterImage(nextPercentage);
-      onImageChange(centerImage);
 
       track.animate(
         {
@@ -94,6 +118,24 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
     window.onmousemove = (e) => handleOnMove(e);
 
     window.ontouchmove = (e) => handleOnMove(e.touches[0]);
+
+    // Continuously update which image is at center using requestAnimationFrame
+    let animationFrameId;
+    const updateCenterImage = () => {
+      const centerImage = calculateCenterImage();
+      onImageChange(centerImage);
+      animationFrameId = requestAnimationFrame(updateCenterImage);
+    };
+
+    // Start the continuous update loop
+    updateCenterImage();
+
+    // Cleanup on unmount
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [onImageChange]);
 
   // GSAP animation for image expansion
