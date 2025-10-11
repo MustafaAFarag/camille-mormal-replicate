@@ -1,0 +1,12 @@
+.list {
+  display: flex;
+  color: white;
+  list-style: none;
+  gap: 2rem;
+  justify-content: center;
+  padding-top: 1.3rem;
+  margin-right: 4rem;
+  font-size: 1rem;
+  user-select: none;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
