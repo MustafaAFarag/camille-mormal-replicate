@@ -17,6 +17,8 @@ export default function ImageTrack({
   const clonedImageRef = useRef(null);
   const originalPositionRef = useRef(null);
   const cloneClickHandlerRef = useRef(null); // Store click handler for cleanup
+  const savedObjectPositionsRef = useRef([]); // Store object-position for each image
+  const hasCompletedIntroRef = useRef(false); // Track if intro has been handled
 
   // Debug logging
   useEffect(() => {
@@ -113,14 +115,21 @@ export default function ImageTrack({
         { duration: 1200, fill: "forwards" }
       );
 
-      for (const image of track.getElementsByClassName("image")) {
-        image.animate(
-          {
-            objectPosition: `${50 + nextPercentage / 2}% center`,
-          },
-          { duration: 1200, fill: "forwards" }
-        );
-      }
+      // CRITICAL FIX for Bug #2: Only animate visible images (opacity > 0)
+      // This prevents animating hidden images while one is expanded
+      const images = Array.from(track.getElementsByClassName("image"));
+      images.forEach((image) => {
+        const currentOpacity = window.getComputedStyle(image).opacity;
+        // Only animate if the image is visible (not hidden during expansion)
+        if (parseFloat(currentOpacity) > 0.1) {
+          image.animate(
+            {
+              objectPosition: `${50 + nextPercentage / 2}% center`,
+            },
+            { duration: 1200, fill: "forwards" }
+          );
+        }
+      });
     };
 
     /* -- Had to add extra lines for touch events -- */
@@ -168,8 +177,16 @@ export default function ImageTrack({
       if (!clickedImage) return;
 
       // If starting expanded (from intro), just set up the expanded state without animation
-      if (startExpanded && expandedImageIndex === 0) {
-        console.log("=== Starting Expanded (Skip Animation) ===");
+      // CRITICAL: Only skip animation on the FIRST time (from intro), not subsequent clicks
+      if (
+        startExpanded &&
+        expandedImageIndex === 0 &&
+        !hasCompletedIntroRef.current
+      ) {
+        console.log(
+          "=== Starting Expanded (Skip Animation - FIRST TIME ONLY) ==="
+        );
+        hasCompletedIntroRef.current = true; // Mark intro as handled
 
         // Look for existing intro clone instead of creating a new one
         let clone = document.getElementById("intro-hero-clone");
@@ -284,8 +301,20 @@ export default function ImageTrack({
         };
 
         console.log(
-          "Stored original position for collapse:",
+          "💾 Stored original position for collapse (first image):",
           originalPositionRef.current
+        );
+
+        // CRITICAL: Store all images' object-positions before expansion
+        savedObjectPositionsRef.current = images.map((img) => {
+          if (!img) return "50% center";
+          const style = window.getComputedStyle(img);
+          return style.objectPosition;
+        });
+
+        console.log(
+          "💾 Saved object-positions:",
+          savedObjectPositionsRef.current
         );
 
         return;
@@ -355,6 +384,18 @@ export default function ImageTrack({
       };
 
       console.log("💾 STORED ORIGINAL POSITION:", originalPositionRef.current);
+
+      // CRITICAL: Store all images' object-positions before expansion
+      savedObjectPositionsRef.current = images.map((img) => {
+        if (!img) return "50% center";
+        const style = window.getComputedStyle(img);
+        return style.objectPosition;
+      });
+
+      console.log(
+        "💾 Saved object-positions:",
+        savedObjectPositionsRef.current
+      );
 
       // Get the object-position from the original image
       const originalObjectPosition =
@@ -551,20 +592,53 @@ export default function ImageTrack({
         }
       });
 
-      gsap.to(images, {
-        opacity: 1,
-        duration: 0.8,
-        ease: "power2.inOut",
+      // CRITICAL FIX for Bug #2: Restore each image with CURRENT object-position from track
+      // Get the current track percentage to calculate the correct object-position
+      const currentPercentage = parseFloat(track?.dataset.percentage) || 0;
+      const correctObjectPosition = `${50 + currentPercentage / 2}% center`;
+
+      console.log(`🎯 Current track percentage: ${currentPercentage}%`);
+      console.log(
+        `🎯 Calculated correct object-position: ${correctObjectPosition}`
+      );
+
+      images.forEach((img, idx) => {
+        if (img) {
+          console.log(
+            `🔄 Restoring image ${idx} with object-position: ${correctObjectPosition}`
+          );
+
+          // Set immediately to prevent flicker, then fade in
+          gsap.set(img, {
+            objectPosition: correctObjectPosition,
+          });
+
+          gsap.to(img, {
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.inOut",
+          });
+        }
       });
 
       // After fade completes, clean up
       gsap.delayedCall(0.8, () => {
         console.log("🧹 Cleaning up after collapse");
 
-        // Clear any GSAP inline styles that might interfere
-        images.forEach((img) => {
+        // Get current track percentage for final object-position
+        const currentPercentage = parseFloat(track?.dataset.percentage) || 0;
+        const finalObjectPosition = `${50 + currentPercentage / 2}% center`;
+
+        // Clear GSAP inline styles but preserve object-position
+        images.forEach((img, idx) => {
           if (img) {
-            gsap.set(img, { clearProps: "all" });
+            // Clear all props except object-position
+            gsap.set(img, { clearProps: "opacity" });
+            // Ensure object-position matches current carousel state
+            img.style.objectPosition = finalObjectPosition;
+            console.log(
+              `✅ Image ${idx} cleaned up with object-position: ${finalObjectPosition}`
+            );
           }
         });
 
