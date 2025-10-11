@@ -4,12 +4,30 @@ import { useGSAP } from "@gsap/react";
 
 gsap.registerPlugin(useGSAP);
 
-export default function ImageTrack({ onImageChange, onExpandChange }) {
-  const [expandedImageIndex, setExpandedImageIndex] = useState(null);
+export default function ImageTrack({
+  onImageChange,
+  onExpandChange,
+  startExpanded,
+}) {
+  const [expandedImageIndex, setExpandedImageIndex] = useState(
+    startExpanded ? 0 : null
+  );
   const trackRef = useRef(null);
   const imagesRef = useRef([]);
   const clonedImageRef = useRef(null);
-  const originalPositionRef = useRef(null); // Store original position for reverse animation
+  const originalPositionRef = useRef(null);
+  const cloneClickHandlerRef = useRef(null); // Store click handler for cleanup
+
+  // Debug logging
+  useEffect(() => {
+    console.log("📊 Expanded State Changed:", expandedImageIndex);
+  }, [expandedImageIndex]);
+
+  useEffect(() => {
+    if (startExpanded && expandedImageIndex === null) {
+      setExpandedImageIndex(0);
+    }
+  }, [startExpanded]);
 
   useEffect(() => {
     const track = document.getElementById("image-track");
@@ -149,6 +167,90 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
 
       if (!clickedImage) return;
 
+      // If starting expanded (from intro), just set up the expanded state without animation
+      if (startExpanded && expandedImageIndex === 0) {
+        console.log("=== Starting Expanded (Skip Animation) ===");
+
+        // Look for existing intro clone instead of creating a new one
+        let clone = document.getElementById("intro-hero-clone");
+
+        if (clone) {
+          console.log("Found existing intro clone, reusing it");
+          // Remove the ID since we're taking over
+          clone.removeAttribute("id");
+        } else {
+          console.log("No intro clone found, creating new one");
+          // Fallback: create clone at fullscreen
+          clone = clickedImage.cloneNode(true);
+          document.body.appendChild(clone);
+
+          gsap.set(clone, {
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            margin: 0,
+            padding: 0,
+            zIndex: 1000,
+            transform: "none",
+            objectFit: "cover",
+            cursor: "pointer",
+          });
+        }
+
+        clonedImageRef.current = clone;
+
+        // Hide original and other images
+        gsap.set(clickedImage, { opacity: 0 });
+        images.forEach((img, index) => {
+          if (index !== expandedImageIndex) {
+            gsap.set(img, { opacity: 0 });
+          }
+        });
+
+        // Add click handler to collapse
+        const clickHandler = () => {
+          console.log(
+            "Clone clicked! Current expandedImageIndex:",
+            expandedImageIndex
+          );
+          // Always pass 0 since this is the first image from intro
+          handleImageClick(0);
+        };
+        cloneClickHandlerRef.current = clickHandler;
+        clone.addEventListener("click", clickHandler);
+
+        // Disable track interaction
+        if (track) {
+          track.style.pointerEvents = "none";
+        }
+
+        // Calculate and store the original carousel position for collapse
+        // We need to get the position where the image WOULD be in the carousel
+        const trackRect = track.getBoundingClientRect();
+        const imageWidth = clickedImage.offsetWidth;
+        const imageHeight = clickedImage.offsetHeight;
+
+        // Calculate position based on track's current state
+        const percentage = parseFloat(track.dataset.percentage) || 0;
+        const imageLeft = trackRect.left + expandedImageIndex * imageWidth;
+
+        originalPositionRef.current = {
+          top: trackRect.top,
+          left: imageLeft,
+          width: imageWidth,
+          height: imageHeight,
+        };
+
+        console.log(
+          "Stored original position for collapse:",
+          originalPositionRef.current
+        );
+
+        return;
+      }
+
       // Get the current position and size of the clicked image
       const rect = clickedImage.getBoundingClientRect();
 
@@ -251,7 +353,6 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
         onUpdate: function () {
           const progress = this.progress();
           if (progress % 0.1 < 0.02) {
-            // Log every ~10%
             console.log(`Animation Progress: ${(progress * 100).toFixed(1)}%`);
           }
         },
@@ -262,13 +363,11 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
             width: finalWidth,
             height: finalHeight,
           });
-        },
-        onComplete: () => {
-          // Add click handler to the clone to collapse
-          clone.addEventListener("click", () =>
-            handleImageClick(expandedImageIndex)
-          );
-          // Note: Parent already notified immediately on click
+
+          // Store and add click handler
+          const clickHandler = () => handleImageClick(expandedImageIndex);
+          cloneClickHandlerRef.current = clickHandler;
+          clone.addEventListener("click", clickHandler);
         },
       });
 
@@ -292,12 +391,21 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
         track.style.pointerEvents = "none";
       }
     },
-    { scope: trackRef, dependencies: [expandedImageIndex] }
+    { scope: trackRef, dependencies: [expandedImageIndex, startExpanded] }
   );
 
   // Handle image click
   const handleImageClick = (index) => {
+    console.log(
+      "🖱️ Image clicked:",
+      index,
+      "Current expanded:",
+      expandedImageIndex
+    );
+
     if (expandedImageIndex === index) {
+      console.log("🔽 Collapsing image");
+
       // Collapse back to original - IMMEDIATELY notify parent
       if (onExpandChange) {
         onExpandChange(false);
@@ -308,58 +416,91 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
       const clone = clonedImageRef.current;
       const originalPos = originalPositionRef.current;
 
-      if (clone && originalPos) {
-        // Reverse animation: shrink back to original position
-        gsap.to(clone, {
-          top: originalPos.top,
-          left: originalPos.left,
-          width: originalPos.width,
-          height: originalPos.height,
-          duration: 0.8,
-          ease: "power2.inOut",
-          onComplete: () => {
-            clone.remove();
-            clonedImageRef.current = null;
-            originalPositionRef.current = null;
-          },
-        });
+      console.log(
+        "Clone exists:",
+        !!clone,
+        "Original pos exists:",
+        !!originalPos
+      );
+
+      // IMPORTANT: Set state to null immediately to prevent re-clicks
+      setExpandedImageIndex(null);
+
+      if (clone) {
+        // Remove event listener before removing clone
+        if (cloneClickHandlerRef.current) {
+          clone.removeEventListener("click", cloneClickHandlerRef.current);
+          cloneClickHandlerRef.current = null;
+        }
+
+        if (originalPos) {
+          console.log("Animating clone back to position:", originalPos);
+          // Reverse animation: shrink back to original position
+          gsap.to(clone, {
+            top: originalPos.top,
+            left: originalPos.left,
+            width: originalPos.width,
+            height: originalPos.height,
+            duration: 0.8,
+            ease: "power2.inOut",
+            onComplete: () => {
+              console.log("✅ Clone animation complete, removing clone");
+              clone.remove();
+              clonedImageRef.current = null;
+              originalPositionRef.current = null;
+            },
+          });
+        } else {
+          console.log("⚠️ No original position, removing clone immediately");
+          // No original position stored, just remove the clone
+          clone.remove();
+          clonedImageRef.current = null;
+        }
+      } else {
+        console.log("⚠️ No clone found to remove");
       }
 
       // Restore all images - start fading in as clone shrinks
+      console.log("Restoring all images to opacity: 1");
       gsap.to(images, {
         opacity: 1,
         duration: 0.8,
         ease: "power2.inOut",
-        onComplete: () => {
-          setExpandedImageIndex(null);
+      });
 
-          // Clear any GSAP inline styles that might interfere
-          images.forEach((img) => {
-            if (img) {
-              gsap.set(img, { clearProps: "all" });
-            }
-          });
+      // After fade completes, clean up
+      gsap.delayedCall(0.8, () => {
+        console.log("🧹 Cleaning up after collapse");
 
-          if (track) {
-            track.style.pointerEvents = "auto";
-            // Ensure dataset values are valid
-            if (
-              !track.dataset.percentage ||
-              isNaN(parseFloat(track.dataset.percentage))
-            ) {
-              track.dataset.percentage = "0";
-            }
-            if (
-              !track.dataset.prevPercentage ||
-              isNaN(parseFloat(track.dataset.prevPercentage))
-            ) {
-              track.dataset.prevPercentage = "0";
-            }
-            track.dataset.mouseDownAt = "0";
+        // Clear any GSAP inline styles that might interfere
+        images.forEach((img) => {
+          if (img) {
+            gsap.set(img, { clearProps: "all" });
           }
-        },
+        });
+
+        if (track) {
+          track.style.pointerEvents = "auto";
+          // Ensure dataset values are valid
+          if (
+            !track.dataset.percentage ||
+            isNaN(parseFloat(track.dataset.percentage))
+          ) {
+            track.dataset.percentage = "0";
+          }
+          if (
+            !track.dataset.prevPercentage ||
+            isNaN(parseFloat(track.dataset.prevPercentage))
+          ) {
+            track.dataset.prevPercentage = "0";
+          }
+          track.dataset.mouseDownAt = "0";
+        }
+
+        console.log("✅ Collapse complete, track interactive again");
       });
     } else {
+      console.log("🔼 Expanding image:", index);
       // Expand image - IMMEDIATELY notify parent
       if (onExpandChange) {
         onExpandChange(true);
@@ -384,6 +525,7 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
       id="image-track"
       ref={trackRef}
       data-mouse-down-at="0"
+      data-percentage="0"
       data-prev-percentage="0"
     >
       {imageUrls.map((url, index) => (

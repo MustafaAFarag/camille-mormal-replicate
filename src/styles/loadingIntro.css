@@ -1,0 +1,65 @@
+.loading-intro-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #141414;
+  z-index: 99999;
+  overflow: visible;
+  pointer-events: all;
+  user-select: none;
+}
+
+.loading-progress {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.loading-text {
+  color: white;
+  font-size: 2.5rem;
+  font-weight: 300;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.intro-grid-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.intro-grid {
+  flex-shrink: 0;
+  width: 25vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  position: relative;
+}
+
+.intro-grid-image {
+  position: absolute;
+  width: 100%;
+  height: 25vh;
+  object-fit: cover;
+  object-position: center;
+  will-change: transform;
+}
+
+body.intro-active {
+  overflow: hidden;
+  pointer-events: none;
+}
