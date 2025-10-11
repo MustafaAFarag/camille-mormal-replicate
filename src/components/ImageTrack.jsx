@@ -175,7 +175,47 @@ export default function ImageTrack({
         let clone = document.getElementById("intro-hero-clone");
 
         if (clone) {
-          console.log("Found existing intro clone, reusing it");
+          console.log("✅ Found existing intro clone, reusing it");
+          const rect = clone.getBoundingClientRect();
+          const computedStyle = window.getComputedStyle(clone);
+          console.log("🔍 INTRO CLONE STATE WHEN FOUND:", {
+            boundingRect: {
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            },
+            computedStyle: {
+              top: computedStyle.top,
+              left: computedStyle.left,
+              width: computedStyle.width,
+              height: computedStyle.height,
+              position: computedStyle.position,
+              objectFit: computedStyle.objectFit,
+            },
+          });
+
+          // CRITICAL FIX: Ensure clone is at full viewport size
+          // Sometimes GSAP animations don't complete perfectly
+          gsap.set(clone, {
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            objectFit: "cover",
+            objectPosition: "50% center",
+            zIndex: 1000,
+            clearProps: "transform",
+          });
+
+          console.log("🔧 Clone verified and set to 100vw x 100vh");
+          const verifiedRect = clone.getBoundingClientRect();
+          console.log("Verified dimensions:", {
+            width: verifiedRect.width,
+            height: verifiedRect.height,
+          });
+
           // Remove the ID since we're taking over
           clone.removeAttribute("id");
         } else {
@@ -314,6 +354,13 @@ export default function ImageTrack({
         height: rect.height,
       };
 
+      console.log("💾 STORED ORIGINAL POSITION:", originalPositionRef.current);
+
+      // Get the object-position from the original image
+      const originalObjectPosition =
+        window.getComputedStyle(clickedImage).objectPosition;
+      console.log("📐 Original object-position:", originalObjectPosition);
+
       gsap.set(clone, {
         position: "fixed",
         top: rect.top,
@@ -325,6 +372,7 @@ export default function ImageTrack({
         zIndex: 1000, // Below navbar (10000) but above other content
         transform: "none",
         objectFit: "cover",
+        objectPosition: originalObjectPosition, // Preserve the object-position
         cursor: "pointer",
       });
 
@@ -348,6 +396,7 @@ export default function ImageTrack({
         left: finalLeft,
         width: finalWidth,
         height: finalHeight,
+        objectPosition: "50% center", // Reset to center when expanded
         duration: 0.8,
         ease: "easeIn",
         onUpdate: function () {
@@ -396,6 +445,7 @@ export default function ImageTrack({
 
   // Handle image click
   const handleImageClick = (index) => {
+    console.log("=".repeat(60));
     console.log(
       "🖱️ Image clicked:",
       index,
@@ -404,7 +454,7 @@ export default function ImageTrack({
     );
 
     if (expandedImageIndex === index) {
-      console.log("🔽 Collapsing image");
+      console.log("🔽 COLLAPSING IMAGE");
 
       // Collapse back to original - IMMEDIATELY notify parent
       if (onExpandChange) {
@@ -422,6 +472,30 @@ export default function ImageTrack({
         "Original pos exists:",
         !!originalPos
       );
+
+      if (clone) {
+        const currentRect = clone.getBoundingClientRect();
+        const currentStyle = window.getComputedStyle(clone);
+        console.log("🔍 CLONE STATE BEFORE COLLAPSE:", {
+          boundingRect: {
+            top: currentRect.top,
+            left: currentRect.left,
+            width: currentRect.width,
+            height: currentRect.height,
+          },
+          computedStyle: {
+            top: currentStyle.top,
+            left: currentStyle.left,
+            width: currentStyle.width,
+            height: currentStyle.height,
+            objectPosition: currentStyle.objectPosition,
+          },
+        });
+      }
+
+      if (originalPos) {
+        console.log("🎯 TARGET POSITION FOR COLLAPSE:", originalPos);
+      }
 
       // IMPORTANT: Set state to null immediately to prevent re-clicks
       setExpandedImageIndex(null);
@@ -461,7 +535,22 @@ export default function ImageTrack({
       }
 
       // Restore all images - start fading in as clone shrinks
-      console.log("Restoring all images to opacity: 1");
+      console.log("🔄 Restoring all images to opacity: 1");
+
+      // DEBUG: Log each image's state before restoring
+      images.forEach((img, idx) => {
+        if (img) {
+          const rect = img.getBoundingClientRect();
+          const style = window.getComputedStyle(img);
+          console.log(`📷 Image ${idx} before restore:`, {
+            opacity: style.opacity,
+            objectPosition: style.objectPosition,
+            position: { top: rect.top, left: rect.left },
+            size: { width: rect.width, height: rect.height },
+          });
+        }
+      });
+
       gsap.to(images, {
         opacity: 1,
         duration: 0.8,
@@ -500,7 +589,29 @@ export default function ImageTrack({
         console.log("✅ Collapse complete, track interactive again");
       });
     } else {
-      console.log("🔼 Expanding image:", index);
+      console.log("=".repeat(60));
+      console.log("🔼 EXPANDING IMAGE:", index);
+
+      // DEBUG: Log the clicked image state
+      const clickedImg = imagesRef.current[index];
+      if (clickedImg) {
+        const rect = clickedImg.getBoundingClientRect();
+        const style = window.getComputedStyle(clickedImg);
+        console.log("🔍 CLICKED IMAGE STATE:", {
+          index: index,
+          boundingRect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          },
+          computedStyle: {
+            opacity: style.opacity,
+            objectPosition: style.objectPosition,
+          },
+        });
+      }
+
       // Expand image - IMMEDIATELY notify parent
       if (onExpandChange) {
         onExpandChange(true);

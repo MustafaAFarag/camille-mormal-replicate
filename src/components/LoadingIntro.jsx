@@ -145,15 +145,64 @@ export default function LoadingIntro({ onComplete }) {
               opacity: cloneStyles.opacity,
             });
 
+            // DEBUG: Log dimensions changes during animation
+            const logCloneDimensions = () => {
+              const rect = clone.getBoundingClientRect();
+              const computedStyle = window.getComputedStyle(clone);
+              console.log("🔍 CLONE DIMENSIONS:", {
+                time: Date.now(),
+                boundingRect: {
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                },
+                computedStyle: {
+                  top: computedStyle.top,
+                  left: computedStyle.left,
+                  width: computedStyle.width,
+                  height: computedStyle.height,
+                  position: computedStyle.position,
+                  objectFit: computedStyle.objectFit,
+                },
+              });
+            };
+
+            // Log every 100ms during the animation
+            const dimensionLogger = setInterval(logCloneDimensions, 100);
+            setTimeout(() => clearInterval(dimensionLogger), 5000);
+
             masterTL.to(
               clone,
               {
                 top: imageTop,
                 duration: 2.0,
                 ease: "power2.in",
-                onStart: () => console.log("Slide up animation started"),
-                onComplete: () =>
-                  console.log("Slide up complete, clone at:", imageTop),
+                onStart: () => {
+                  console.log("🚀 Slide up animation started");
+                  const rect = clone.getBoundingClientRect();
+                  console.log("Starting position:", rect);
+                },
+                onUpdate: function () {
+                  if (this.progress() % 0.2 < 0.05) {
+                    const rect = clone.getBoundingClientRect();
+                    console.log(
+                      `📊 Slide progress ${(this.progress() * 100).toFixed(
+                        0
+                      )}%:`,
+                      {
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                      }
+                    );
+                  }
+                },
+                onComplete: () => {
+                  console.log("✅ Slide up complete, clone at:", imageTop);
+                  const rect = clone.getBoundingClientRect();
+                  console.log("Final slide position:", rect);
+                },
               },
               imgIndex * stagger
             );
@@ -167,11 +216,59 @@ export default function LoadingIntro({ onComplete }) {
                 height: "100vh",
                 duration: 1.0,
                 ease: "power2.inOut",
-                onStart: () => console.log("Expansion animation started"),
+                onStart: () => {
+                  console.log("🎬 Expansion animation started");
+                  const rect = clone.getBoundingClientRect();
+                  console.log("Pre-expansion position:", rect);
+                },
+                onUpdate: function () {
+                  if (this.progress() % 0.2 < 0.05) {
+                    const rect = clone.getBoundingClientRect();
+                    console.log(
+                      `📊 Expansion progress ${(this.progress() * 100).toFixed(
+                        0
+                      )}%:`,
+                      {
+                        top: rect.top,
+                        left: rect.left,
+                        width: rect.width,
+                        height: rect.height,
+                      }
+                    );
+                  }
+                },
                 onComplete: () => {
                   console.log(
-                    "Expansion complete - keeping clone for ImageTrack"
+                    "✅ Expansion complete - keeping clone for ImageTrack"
                   );
+                  const rect = clone.getBoundingClientRect();
+                  const computedStyle = window.getComputedStyle(clone);
+                  console.log("Final expansion position (BoundingRect):", rect);
+                  console.log("Final expansion position (Computed):", {
+                    top: computedStyle.top,
+                    left: computedStyle.left,
+                    width: computedStyle.width,
+                    height: computedStyle.height,
+                  });
+
+                  // CRITICAL FIX: Force the clone to be exactly 100vw x 100vh
+                  // This ensures ImageTrack receives it in the correct state
+                  gsap.set(clone, {
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    width: "100vw",
+                    height: "100vh",
+                    objectFit: "cover",
+                    objectPosition: "50% center",
+                    zIndex: 100000,
+                    clearProps: "transform",
+                  });
+
+                  console.log("🔧 Clone force-set to 100vw x 100vh");
+                  const finalRect = clone.getBoundingClientRect();
+                  console.log("Final rect after force-set:", finalRect);
+
                   // Remove the intro container immediately after expansion
                   if (containerRef.current) {
                     // Force remove all child elements
