@@ -1,9 +1,11 @@
 import "../styles/imageIndactior.css";
 
-export default function ImageIndicator() {
+export default function ImageIndicator({ currentImage, totalImages }) {
   return (
     <div className="image-indicator">
-      <span className="image-number">1 — 8</span>
+      <span className="image-number">
+        {currentImage} — {totalImages}
+      </span>
     </div>
   );
 }

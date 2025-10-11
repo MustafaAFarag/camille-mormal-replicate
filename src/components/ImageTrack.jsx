@@ -1,8 +1,31 @@
 import { useEffect } from "react";
 
-export default function ImageTrack() {
+export default function ImageTrack({ onImageChange }) {
   useEffect(() => {
     const track = document.getElementById("image-track");
+    const totalImages = 8;
+
+    // Function to calculate which image is in the center
+    const calculateCenterImage = (percentage) => {
+      // percentage ranges from 0 to -90
+      // We want to detect when the LEFT edge of an image hits the center
+      // Each image represents approximately 90/7 ≈ 12.86% of the total range
+      // Adjust the threshold so it changes earlier
+      const normalizedPercentage = Math.abs(percentage);
+      // Use a factor to make it trigger earlier (when left edge hits center)
+      // Divide by (totalImages - 1) to distribute across the range better
+      const imageIndex = Math.min(
+        Math.max(
+          Math.ceil((normalizedPercentage / 90) * (totalImages - 1)) + 1,
+          1
+        ),
+        totalImages
+      );
+
+      console.log("Current percentage:", percentage);
+      console.log("Center Image Index:", imageIndex);
+      return imageIndex;
+    };
 
     const handleOnDown = (e) => (track.dataset.mouseDownAt = e.clientX);
 
@@ -22,14 +45,18 @@ export default function ImageTrack() {
           parseFloat(track.dataset.prevPercentage) + percentage,
         nextPercentage = Math.max(
           Math.min(nextPercentageUnconstrained, 0),
-          -90
+          -89
         );
 
       track.dataset.percentage = nextPercentage;
 
+      // Update the current image indicator
+      const centerImage = calculateCenterImage(nextPercentage);
+      onImageChange(centerImage);
+
       track.animate(
         {
-          transform: `translate(${nextPercentage - 5}%, -50%)`,
+          transform: `translate(${nextPercentage - 5.5}%, -50%)`,
         },
         { duration: 1200, fill: "forwards" }
       );
@@ -57,12 +84,10 @@ export default function ImageTrack() {
     window.onmousemove = (e) => handleOnMove(e);
 
     window.ontouchmove = (e) => handleOnMove(e.touches[0]);
-  }, []);
+  }, [onImageChange]);
 
   return (
     <div id="image-track" data-mouse-down-at="0" data-prev-percentage="0">
-      <img className="image" src="/images/home.jpg" draggable="false" />
-      <img className="image" src="/images/home-1.jpg" draggable="false" />
       <img className="image" src="/images/home.jpg" draggable="false" />
       <img className="image" src="/images/home-1.jpg" draggable="false" />
       <img className="image" src="/images/home.jpg" draggable="false" />
