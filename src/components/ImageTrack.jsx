@@ -290,14 +290,14 @@ export default function ImageTrack({ onImageChange, onExpandChange }) {
         ease: "power2.inOut",
         onComplete: () => {
           setExpandedImageIndex(null);
-          
+
           // Clear any GSAP inline styles that might interfere
           images.forEach((img) => {
             if (img) {
               gsap.set(img, { clearProps: "all" });
             }
           });
-          
+
           if (track) {
             track.style.pointerEvents = "auto";
             // Ensure dataset values are valid
