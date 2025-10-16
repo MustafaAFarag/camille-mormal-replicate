@@ -335,8 +335,44 @@ export default function ImageIndicator({ currentImage, totalImages }) {
 - Where it’s wired: `src/App.jsx` (how it gets `currentImage` from the track)
 
 ```jsx
+const [currentImageIndex, setCurrentImageIndex] = useState(1);
+
 <ImageTrack onImageChange={setCurrentImageIndex} onExpandChange={setIsImageExpanded} startExpanded={introComplete && isImageExpanded} />
 <ImageIndicator currentImage={currentImageIndex} totalImages={8} />
+```
+
+```
+ImageTrack.jsx
+
+// Center image indicator loop
+    let rafId;
+    const updateCenterImage = () => {
+      const images = imagesRef.current;
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      let closest = 0,
+        min = Infinity;
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img) continue;
+        const r = img.getBoundingClientRect();
+        const ix = r.left + r.width / 2;
+        const iy = r.top + r.height / 2;
+        const d = Math.hypot(ix - cx, iy - cy);
+        if (d < min) {
+          min = d;
+          closest = i;
+        }
+      }
+      onImageChange(closest + 1);
+      rafId = requestAnimationFrame(updateCenterImage);
+    };
+    updateCenterImage();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [onImageChange]);
 ```
 
 Explanation (EN): The indicator subscribes to the carousel via `onImageChange`, which emits the image nearest to screen center.
